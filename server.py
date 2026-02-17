@@ -25,7 +25,8 @@ async def run_model_api(
     shelf: UploadFile = File(...),
     delivery: UploadFile = File(...)
 ):
-
+    print(f"Starting model execution")
+    print(50*"=")
     paths = []
 
     for file in [forecast, inventory, shelf, delivery]:
@@ -35,6 +36,7 @@ async def run_model_api(
         paths.append(path)
 
     result = run_model(*paths)
+    print(type(result))
 
     # cleanup
     for p in paths:

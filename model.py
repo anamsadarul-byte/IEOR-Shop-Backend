@@ -178,12 +178,22 @@ def run_model(forecast_file, inventory_file, shelf_file, delivery_file):
 
     status = result.solver.termination_condition
 
+    totalOrders=0.0
+    TotalWaste=0.0
+    UnmetDemand =0.0
+    Leftoverinventory=0.0
     # --- helper to extract solution ---
     def extract_solution():
+        totalOrders=0.0
+        TotalWaste=0.0
+        UnmetDemand =0.0
         output=[]
         for t in model.T:
             date=T_MAP[t]
             for i in model.S:
+                totalOrders=totalOrders+float(model.Q[i,t].value or 0)
+                TotalWaste=TotalWaste+float(model.W[i,t].value or 0)
+                UnmetDemand=UnmetDemand + float(model.S_var[i,t].value or 0)
                 output.append({
                     "date": date,
                     "item": i,
@@ -192,20 +202,30 @@ def run_model(forecast_file, inventory_file, shelf_file, delivery_file):
                     "wastage": float(model.W[i,t].value or 0),
                     "inventory_fresh": float(model.I[i,1,t].value or 0)
                 })
-        return output
+        result = {
+            "output":output,
+            "totalOrders":totalOrders,
+            "totalWaste":TotalWaste,
+            "unmetDemand":UnmetDemand
+        }
+        return result
 
     # ==========================================
     # RETURN JSON RESULT
     # ==========================================
 
     if status == am.TerminationCondition.optimal:
-
+        result = extract_solution()
+        print(type(result))
         return {
             "status": "optimal",
             "objective": float(am.value(model.obj)),
             "upper_bound": ub,
             "lower_bound": lb,
-            "results": extract_solution()
+            "results": result["output"],
+            "TotalOrders":result["totalOrders"],
+            "TotalWaste":result["totalWaste"],
+            "totalUnmetDemand":result["unmetDemand"],
         }
 
     elif status in [
@@ -214,14 +234,18 @@ def run_model(forecast_file, inventory_file, shelf_file, delivery_file):
         am.TerminationCondition.other]:
 
         approx = (ub + lb)/2 if ub is not None and lb is not None else None
-
+        result = extract_solution()
+        print(type(result))
         return {
             "status": "feasible_not_optimal",
             "objective_best": float(am.value(model.obj)),
             "upper_bound": ub,
             "lower_bound": lb,
             "approx_objective_midpoint": approx,
-            "results": extract_solution()
+            "results": result["output"],
+            "TotalOrders":result["totalOrders"],
+            "TotalWaste":result["totalWaste"],
+            "totalUnmetDemand":result["unmetDemand"],
         }
 
     else:
